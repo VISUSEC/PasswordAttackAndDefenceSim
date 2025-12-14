@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>パスワード攻撃・防御シミュレータ - VISUSEC</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <h1>パスワード攻撃・防御シミュレータ</h1>
+        <p>攻撃者の視点をシミュレーションし、パスワード管理の重要性を学びます。</p>
+
+        <div class="nav-tabs">
+            <button class="nav-btn active" data-target="section-analysis">① 総当たり解析</button>
+            <button class="nav-btn" data-target="section-lockout">② ロック機能</button>
+            <button class="nav-btn" data-target="section-spray">③ ID探索・スプレー</button>
+            <button class="nav-btn" data-target="section-login">④ 実践ログイン体験</button>
+        </div>
+
+        <div id="section-analysis" class="tab-content active">
+            <div class="input-section">
+                <label for="passwordInput">ターゲットパスワードを入力:</label>
+                <input type="text" id="passwordInput" placeholder="例: Yona, apple (4-6文字程度推奨)">
+                
+                <div class="password-suggestions">
+                    <label>試すパスワードの例:</label>
+                    <div class="suggest-buttons-wrapper">
+                        <button class="suggest-btn" data-password="yona">yona</button>
+                        <button class="suggest-btn" data-password="yonag">yonag</button>
+                        <button class="suggest-btn" data-password="Yona">Yona</button>
+                        <button class="suggest-btn" data-password="Yona5">Yona5</button>
+                        <button class="suggest-btn" data-password="yonago">yonago</button>
+                    </div>
+                </div>
+                
+                <div class="analysis-options">
+                    <label>攻撃手法の選択:</label>
+                    <div class="radio-buttons-wrapper">
+                        <label><input type="radio" name="attackType" value="bruteforce" checked> 総当たり攻撃 (Brute-Force)</label>
+                        <label><input type="radio" name="attackType" value="dictionary"> 辞書攻撃 (Dictionary)</label>
+                    </div>
+                </div>
+
+                <div id="bruteForceOptions">
+                    <div class="radio-buttons-wrapper" style="margin-bottom: 15px;">
+                        <label><input type="radio" name="bruteForceScenario" value="length" checked> シナリオA: 長さの重要性</label>
+                        <label><input type="radio" name="bruteForceScenario" value="chars"> シナリオB: 文字種の重要性</label>
+                        <label><input type="radio" name="bruteForceScenario" value="real"> シナリオC: 全探索 (Real)</label>
+                    </div>
+                </div>
+                
+                <div class="button-row">
+                    <button id="analyzeButton">解析シミュレーション開始</button>
+                    <button id="stopButton" class="action-btn-red hidden">中断する</button> 
+                    
+                    <button id="showCalcDetailBtn" class="action-btn-gray" style="width: auto;">詳細な計算式を表示</button>
+                </div>
+            </div>
+
+            <div class="simulation-section hidden" id="simulationSection">
+                <h2>実行ログ</h2>
+                
+                <div class="status-dashboard">
+                    <div class="status-item">
+                        <span class="status-label">TOTAL ATTEMPTS</span>
+                        <span class="status-value" id="realtimeAttempts">0</span>
+                    </div>
+                    <div class="status-item">
+                        <span class="status-label">ESTIMATED TIME</span>
+                        <span class="status-value" id="realtimeTimer">Calculating...</span>
+                    </div>
+                </div>
+
+                <div class="simulation-display" id="simulationDisplay">
+                    </div>
+            </div>
+        </div>
+
+        <div id="section-lockout" class="tab-content">
+            <div class="input-section">
+                <h2>アカウントロックの体験</h2>
+                <p>ターゲットID: <strong>admin</strong> に対して、連続して誤ったパスワードを入力した場合の挙動を確認します。</p>
+                <div class="lockout-demo-box">
+                    <div class="form-group">
+                        <input type="text" id="lockoutInput" placeholder="パスワードを入力 (例: 123456)">
+                        <button id="lockoutAttackBtn" class="action-btn-red">ログイン試行</button>
+                    </div>
+                    <div class="lockout-status">
+                        <p id="lockoutMessage" class="message-box">待機中...</p>
+                    </div>
+                    <button id="lockoutResetBtn" class="action-btn-gray hidden">管理者権限でロック解除</button>
+                </div>
+            </div>
+        </div>
+
+        <div id="section-spray" class="tab-content">
+            <div class="input-section">
+                <h2>パスワードスプレー攻撃</h2>
+                <p>組織内に実在する「ユーザーID」を特定し、その後「弱いパスワード」を一斉に試行します。</p>
+                <div class="step-box">
+                    <h3>Step 1: ユーザーIDの探索</h3>
+                    <p>外部から推測可能なID（社員名やadmin等）がサーバー上に存在するか確認します。</p>
+                    <button id="enumerateUsersBtn" class="action-btn-blue">IDリスト取得を実行</button>
+                    <div id="foundUsersArea" class="hidden">
+                        <p><strong>発見された有効なID:</strong></p>
+                        <div id="userListDisplay" class="user-tags"></div>
+                    </div>
+                </div>
+                <div id="sprayStepBox" class="step-box hidden">
+                    <h3>Step 2: パスワードスプレーの実行</h3>
+                    <p>発見した全ユーザーに対して、指定したパスワードでログインを試みます。</p>
+                    <label>試行するパスワードを選択:</label>
+                    <div class="spray-controls">
+                        <select id="sprayPasswordSelect">
+                            <option value="password">password (超危険)</option>
+                            <option value="123456">123456 (超危険)</option>
+                            <option value="baseball">baseball (趣味)</option>
+                            <option value="admin123">admin123 (ありがち)</option>
+                            <option value="qwerty">qwerty (配列)</option>
+                        </select>
+                        <button id="executeSprayBtn" class="action-btn-red">一斉攻撃開始</button>
+                    </div>
+                    <div class="simulation-display spray-log" id="sprayResultDisplay"></div>
+                </div>
+            </div>
+        </div>
+
+        <div id="section-login" class="tab-content">
+            <div class="input-section login-simulation-wrapper">
+                <h2>不正アクセス体験 (Simulation)</h2>
+                <p>Tab 3で特定した情報を使って、実際にログインできるか確認してください。</p>
+                <div class="login-card">
+                    <h3>社内ポータル ログイン</h3>
+                    <div class="form-group">
+                        <label>ユーザーID</label>
+                        <input type="text" id="demoLoginId" placeholder="IDを入力">
+                    </div>
+                    <div class="form-group">
+                        <label>パスワード</label>
+                        <input type="password" id="demoLoginPass" placeholder="パスワードを入力">
+                    </div>
+                    <button id="demoLoginBtn" class="action-btn-blue full-width">ログイン</button>
+                    <p id="demoLoginMsg"></p>
+                </div>
+                <div class="hacked-list-box">
+                    <h3>🔻 侵害に成功したアカウント一覧</h3>
+                    <div class="cracked-list-container">
+                        <table class="result-table">
+                            <thead>
+                                <tr>
+                                    <th>ユーザーID</th>
+                                    <th>特定されたパスワード</th>
+                                    <th>状態</th>
+                                </tr>
+                            </thead>
+                            <tbody id="crackedListBody">
+                                <tr><td colspan="3" class="empty-msg">まだ攻撃を行っていません。<br>Tab 3でスプレー攻撃を実行してください。</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="calculationModal" class="modal-overlay hidden">
+        <div class="modal-content">
+            <span class="modal-close">&times;</span>
+            <h2>解析時間の推定計算</h2>
+            <div class="modal-options">
+                <label for="threatModelSelect">攻撃環境:</label>
+                <select id="threatModelSelect">
+                    <option value="pc">一般的なPC</option>
+                    <option value="gpu">高性能GPU</option>
+                    <option value="cloud">クラウド規模攻撃</option>
+                </select>
+            </div>
+            <hr>
+            <div id="calculationDetails">
+                </div>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+    <footer>
+        <div>©VISUSEC 2022-2025 <a href="https://whr.jp/VISUSEC_LIC" target="_blank">利用規約</a></div>
+        <div>パスワード攻撃・防御シミュレータ Ver.1（2025.12.14）[Origin 2025.12.14]</div>
+    </footer>
+</body>
+</html>
