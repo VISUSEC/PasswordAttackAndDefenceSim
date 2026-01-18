@@ -179,11 +179,12 @@ document.addEventListener('DOMContentLoaded', () => {
             realtimeAttempts.textContent = count.toLocaleString();
             realtimeTimer.textContent = ((Date.now() - startTime) / 1000).toFixed(2) + "s";
             
-            appendLog(simulationDisplay, `試行 ${count}: ${word} ... 不一致`, 'normal');
-            
             if (word === target) {
+                appendLog(simulationDisplay, `試行 ${count}: ${word} ... 一致しました！`, 'success');
                 finishAttack(count, target, startTime, "辞書攻撃成功");
                 found = true; break;
+            } else {
+                appendLog(simulationDisplay, `試行 ${count}: ${word} ... 不一致`, 'normal');
             }
             
             await sleep(50);
@@ -191,7 +192,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!found && isRunning) appendLog(simulationDisplay, `[RESULT] 辞書内にパスワードは見つかりませんでした。`, 'fail');
     }
 
-    // 3. 総当たり攻撃
+// 3. 総当たり攻撃（軽量・高速化版）
     async function runRealBruteForce(target, scenario) {
         const charSets = { 
             lower: 'abcdefghijklmnopqrstuvwxyz', 
@@ -223,30 +224,52 @@ document.addEventListener('DOMContentLoaded', () => {
             appendLog(simulationDisplay, `--- [PHASE] ${len}文字の解析を開始 ---`, 'system');
             
             const generator = generateCombinations(len, charArray);
-            const BATCH_SIZE = 2000;
+            
+            const BATCH_SIZE = 15000; 
+
+            let attemptsInCurrentLength = 0; 
 
             while (true) {
                 if (!isRunning) return;
+                
                 const shouldBreak = await new Promise(resolve => {
                     setTimeout(() => {
-                        for (let i = 0; i < BATCH_SIZE; i++) {
+                        let batchCount = 0;
+
+                        while (batchCount < BATCH_SIZE) {
                             const { value, done } = generator.next();
                             if (done) { resolve(true); return; }
-                            totalAttempts++;
                             
+                            totalAttempts++;
+                            attemptsInCurrentLength++;
+                            batchCount++;
+                            
+                            // A. 正解ヒット判定
                             if (value === target) {
-                                finishAttack(totalAttempts, target, startTime, "総当たり成功");
-                                resolve("FOUND"); return;
-                            }
-                            if (totalAttempts % 3000 === 0) {
                                 realtimeAttempts.textContent = totalAttempts.toLocaleString();
                                 realtimeTimer.textContent = ((Date.now() - startTime) / 1000).toFixed(2) + "s";
-                                appendLog(simulationDisplay, `試行: ${value}`, 'normal');
+                                appendLog(simulationDisplay, `試行 ${totalAttempts} : ${value} ... 一致しました！`, 'success');
+                                finishAttack(totalAttempts, target, startTime, "総当たり成功");
+                                resolve("FOUND"); 
+                                return;
+                            }
+
+                            // B. ログ出力（演出）
+                            if (attemptsInCurrentLength <= 10) {
+                                appendLog(simulationDisplay, `試行 ${totalAttempts} : ${value} ... 違う`, 'request');
+                            } else if (totalAttempts % 100000 === 0) {
+                                // キリ番の時だけログを出す
+                                appendLog(simulationDisplay, `試行 ${totalAttempts} : ${value} ... 違う`, 'request');
                             }
                         }
+
+                        realtimeAttempts.textContent = totalAttempts.toLocaleString();
+                        realtimeTimer.textContent = ((Date.now() - startTime) / 1000).toFixed(2) + "s";
+
                         resolve(false); 
                     }, 0);
                 });
+
                 if (shouldBreak === "FOUND") return;
                 if (shouldBreak === true) break;
             }
@@ -278,7 +301,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function finishAttack(count, target, startTime, msg) {
         const elapsed = ((Date.now() - startTime) / 1000).toFixed(2);
-        appendLog(simulationDisplay, `一致: ${target}`, 'success');
+        // appendLog(simulationDisplay, `一致: ${target}`, 'success');
         appendLog(simulationDisplay, `[RESULT] ${msg} (${elapsed}s)`, 'system');
         
         discoveredPassword = target;
